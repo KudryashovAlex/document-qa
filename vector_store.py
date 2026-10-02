@@ -89,14 +89,25 @@ def search(collection, query: str, top_k: int = 5) -> list:
 
 
 if __name__ == "__main__":
-    chunks = load_chunks()
-    print(f"Чанков для индексации: {len(chunks)}")
+    client = chromadb.PersistentClient(path=DB_PATH)
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},
+    )
 
-    collection = build_collection(chunks)
-    print(f"Векторов в базе: {collection.count()}")
+    # === КЕШИРОВАНИЕ: строим базу только если она пустая ===
+    if collection.count() == 0:
+        print("База пуста, начинаю индексацию...")
+        chunks = load_chunks()
+        print(f"Чанков для индексации: {len(chunks)}")
+        collection = build_collection(chunks)
+        print(f"Индексация завершена. Векторов в базе: {collection.count()}")
+    else:
+        print(f"База уже заполнена ({collection.count()} векторов), пропускаю индексацию")
     print("-" * 70)
 
-    query = "На какое напряжение распространяются правила ПУЭ?"
+    # === ПОИСК: работает всегда, с ЛЮБЫМ вопросом ===
+    query = "кабель для 3 фазной нагрузки 5 квт"
     print(f"Вопрос: {query}\n")
 
     for item in search(collection, query, top_k=3):
